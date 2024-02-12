@@ -36,7 +36,7 @@ definitions:
           script:
             - if [ -n "$Environment" ] ; then export BITBUCKET_DEPLOYMENT_ENVIRONMENT=$Environment; fi
             - . ./config/config-aws.sh
-      		  - aws --profile serverless s3 cp ./gluejob_data_load.py s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT}-dst-aws-glue-assets/scripts/ops/data-load/
+            - aws --profile serverless s3 cp ./gluejob_data_load.py s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT}-dst-aws-glue-assets/scripts/ops/data-load/
 
 
 
