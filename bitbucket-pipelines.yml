@@ -14,7 +14,8 @@ definitions:
             - aws --profile serverless configure set aws_secret_access_key $DEV_ROLE_USER_SECURITY_KEY
             - aws --profile serverless configure set role_arn $DEV_ROLE_ARN_SERVERLESS
             - aws --profile serverless configure set source_profile serverless
-            - aws --profile serverless cloudformation validate-template --template-body file://template.yaml
+#            - aws --profile serverless cloudformation validate-template --template-body file://data-load-glue.yml
+
       - step: &Deploy
           image: amazon/aws-cli:2.0.42
           name: Deploy
@@ -22,9 +23,22 @@ definitions:
             - if [ -n "$Environment" ] ; then export BITBUCKET_DEPLOYMENT_ENVIRONMENT=$Environment; fi
             - . ./config/config-aws.sh
             - echo "${costCenter}"
-            - aws --profile serverless cloudformation deploy --template-file ./template.yaml --stack-name $BITBUCKET_REPO_SLUG --capabilities CAPABILITY_NAMED_IAM  --tags "Business-Unit=[]" "CostCenter=${costCenter}" "Project=[]" --parameter-overrides file://$BITBUCKET_DEPLOYMENT_ENVIRONMENT-config.json 
+            - aws --profile serverless s3 cp ./gluejob_data_load.py s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT}-dst-aws-glue-assets/scripts/ops/data-load/
+            - aws --profile serverless cloudformation deploy --template-file ./data-load-glue.yml --stack-name $BITBUCKET_REPO_SLUG-s3bucket --capabilities CAPABILITY_NAMED_IAM  --tags "Business-Unit=dataeng" "CostCenter=${costCenter}" "Project=PJ-IT-2150" --parameter-overrides file://config-${EnvType,,}.json
+            - aws --profile serverless cloudformation deploy --template-file ./data-load-glue.yml --stack-name $BITBUCKET_REPO_SLUG --capabilities CAPABILITY_NAMED_IAM  --tags "Business-Unit=dataeng" "CostCenter=${costCenter}" "Project=PJ-IT-2150" --parameter-overrides file://config-${EnvType,,}.json
           after-script:
+            - aws --profile serverless cloudformation describe-stack-events --stack-name $BITBUCKET_REPO_SLUG-s3bucket
             - aws --profile serverless cloudformation describe-stack-events --stack-name $BITBUCKET_REPO_SLUG
+
+      - step: &Copy-file
+          image: amazon/aws-cli:2.0.42
+          name: Copy-to-s3
+          script:
+            - if [ -n "$Environment" ] ; then export BITBUCKET_DEPLOYMENT_ENVIRONMENT=$Environment; fi
+            - . ./config/config-aws.sh
+      			- aws --profile serverless s3 cp ./gluejob_data_load.py s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT}-dst-aws-glue-assets/scripts/ops/data-load/
+
+
 
 pipelines:
   ###################### Custom pipelines to provision Infra######################
@@ -35,31 +49,67 @@ pipelines:
           name: Template Validation
       - step:
           <<: *Deploy
-          name: Provision  stack in evaluation
+          name: Provision stack in evaluation
           deployment: evaluation
           trigger: manual
       - step:
           <<: *Deploy
-          name: Provision  stack in development
+          name: Provision stack in development
           deployment: development
           trigger: manual
       - step:
           <<: *Deploy
-          name: Provision  stack in ftest
+          name: Provision stack in ftest
           deployment: ftest
           trigger: manual
       - step:
           <<: *Deploy
-          name: Provision  stack in staging
+          name: Provision stack in staging
           deployment: staging
           trigger: manual
       - step:
           <<: *Deploy
-          name: Provision  stack in ptest
+          name: Provision stack in ptest
           deployment: ptest
           trigger: manual
       - step:
           <<: *Deploy
-          name: Provision  stack in production
+          name: Provision stack in production
           deployment: production
           trigger: manual                 
+		  
+  custom:
+    Custom CFT deployment:
+      - variables:
+        - name: BITBUCKET_DEPLOYMENT_ENVIRONMENT
+          default: development
+          allowed-values:
+            - evaluation
+            - development
+            - ftest
+            - staging
+            - ptest
+            - production
+      - step:
+          <<: *Template-Validation
+          name: Validate-template
+          deployment: evaluation
+      - step:
+          <<: *Deploy
+          name: Deploy-to-env
+
+    Copy script to S3:
+      - variables:
+        - name: BITBUCKET_DEPLOYMENT_ENVIRONMENT
+          default: development
+          allowed-values:
+            - evaluation
+            - development
+            - ftest
+            - staging
+            - ptest
+            - production
+      - step:
+          <<: *Copy-file
+          name: Copy-to-env
+		  
