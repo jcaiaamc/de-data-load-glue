@@ -1,35 +1,65 @@
-# This is an example Starter pipeline configuration
-# Use a skeleton to build, test and deploy using manual and parallel steps
-# -----
-# You can specify a custom docker image from Docker Hub as your build environment.
+clone:
+  depth: full # depth defined
+options:
+  max-time: 30 # pipeline max-time execution set to 30 mins
 
-image: atlassian/default-image:3
+definitions:
+  steps:
+      - step: &Template-Validation
+          image: amazon/aws-cli:2.0.42
+          name: Template-Validation
+          script:
+            - aws --profile serverless configure set default.region us-east-1
+            - aws --profile serverless configure set aws_access_key_id $DEV_ROLE_USER_ACCESS_KEY
+            - aws --profile serverless configure set aws_secret_access_key $DEV_ROLE_USER_SECURITY_KEY
+            - aws --profile serverless configure set role_arn $DEV_ROLE_ARN_SERVERLESS
+            - aws --profile serverless configure set source_profile serverless
+            - aws --profile serverless cloudformation validate-template --template-body file://template.yaml
+      - step: &Deploy
+          image: amazon/aws-cli:2.0.42
+          name: Deploy
+          script:
+            - if [ -n "$Environment" ] ; then export BITBUCKET_DEPLOYMENT_ENVIRONMENT=$Environment; fi
+            - . ./config/config-aws.sh
+            - echo "${costCenter}"
+            - aws --profile serverless cloudformation deploy --template-file ./template.yaml --stack-name $BITBUCKET_REPO_SLUG --capabilities CAPABILITY_NAMED_IAM  --tags "Business-Unit=[]" "CostCenter=${costCenter}" "Project=[]" --parameter-overrides file://$BITBUCKET_DEPLOYMENT_ENVIRONMENT-config.json 
+          after-script:
+            - aws --profile serverless cloudformation describe-stack-events --stack-name $BITBUCKET_REPO_SLUG
 
 pipelines:
-  default:
-    - parallel:
+  ###################### Custom pipelines to provision Infra######################
+  branches:
+    "{main}":
       - step:
-          name: 'Build and Test'
-          script:
-            - echo "Your build and test goes here..."
+          <<: *Template-Validation
+          name: Template Validation
       - step:
-          name: 'Lint'
-          script:
-            - echo "Your linting goes here..."
+          <<: *Deploy
+          name: Provision  stack in evaluation
+          deployment: evaluation
+          trigger: manual
       - step:
-          name: 'Security scan'
-          script:
-            - echo "Your security scan goes here..."
-
-    # The following deployment steps will be executed for each pipeline run. To configure your steps and conditionally deploy see https://support.atlassian.com/bitbucket-cloud/docs/configure-bitbucket-pipelinesyml/
-    - step:
-        name: 'Deployment to Staging'
-        deployment: staging
-        script:
-          - echo "Your deployment to staging script goes here..."
-    - step:
-        name: 'Deployment to Production'
-        deployment: production
-        trigger: 'manual'
-        script:
-          - echo "Your deployment to production script goes here..."
+          <<: *Deploy
+          name: Provision  stack in development
+          deployment: development
+          trigger: manual
+      - step:
+          <<: *Deploy
+          name: Provision  stack in ftest
+          deployment: ftest
+          trigger: manual
+      - step:
+          <<: *Deploy
+          name: Provision  stack in staging
+          deployment: staging
+          trigger: manual
+      - step:
+          <<: *Deploy
+          name: Provision  stack in ptest
+          deployment: ptest
+          trigger: manual
+      - step:
+          <<: *Deploy
+          name: Provision  stack in production
+          deployment: production
+          trigger: manual                 
