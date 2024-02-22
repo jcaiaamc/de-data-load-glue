@@ -1,6 +1,119 @@
 clone:
   depth: full # depth defined
 options:
+  max-time: 45 # pipeline max-time execution set to 45 mins  
+definitions:
+  steps: 
+
+  ####################### Steps defined to copy file to s3 #######################
+    - step: &Copy-file
+        image: amazon/aws-cli:2.0.42
+        name: Copy-to-s3
+        script:
+          - if [ -n "$Environment" ] ; then export BITBUCKET_DEPLOYMENT_ENVIRONMENT=$Environment; fi
+          - . ./config/config-aws.sh
+
+          - PORTFOLIO=ops
+          - POD=data-load
+          - echo ${DB_TYPE}
+          - echo ${DB}.${SCHEMA,,}.${TABLE,,}
+          - echo $YYYYMMDD
+
+          - aws --profile serverless s3 sync files s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,}--${Portfolio,,}-${Pod,,}-bucket/files/${DB_TYPE}/${DB}/${SCHEMA,,}/${TABLE,,}/$YYYYMMDD/
+
+
+  ####################### Steps defined to delete file(s) from s3 #######################
+    - step: &delete-file
+        image: amazon/aws-cli:2.0.42
+        name: Delete-file
+        script:
+          - if [ -n "$Environment" ] ; then export BITBUCKET_DEPLOYMENT_ENVIRONMENT=$Environment; fi
+          - . ./config/config-aws.sh
+
+          - PORTFOLIO=ops
+          - POD=data-load
+          - bucket_name=s3://${Environment}-${Portfolio,,}-${Pod,,}-bucket/
+          - echo "S3 bucket - ${bucket_name}" 
+          - echo ${file_path}
+          - echo ${delete_type}
+
+          - if [[ $delete_type == "DRY_RUN" ]]; then 
+          - aws --profile serverless s3 rm ${bucket_name} --recursive --dryrun --exclude "*" --include "${file_path}*"
+
+          - elif [[ $delete_type == "DELETE" ]]; then 
+          - aws --profile serverless s3 rm ${bucket_name} --recursive --exclude "*" --include "${file_path}*"
+
+          - else
+          - echo "do nothing"
+          - fi
+
+
+pipelines:
+  custom:
+    Copy to S3:
+      - variables:
+        - name: BITBUCKET_DEPLOYMENT_ENVIRONMENT
+          default: development
+          allowed-values:
+            - evaluation
+            - development
+            - ftest
+            - staging
+            - ptest
+            - production
+        - name: DB_TYPE
+          default: oracle
+          allowed-values:
+            - oracle
+            - postgres
+        - name: DB
+          allowed-values:
+            - RAE
+            - DW
+            - SEC
+            - ERAS
+            - AMCAS
+            - ATS
+            - EIS
+            - edc
+            - eras
+            - mcat
+            - mda
+            - ps
+        - name: SCHEMA
+        - name: TABLE
+        - name: YYYYMMDD
+      - step:
+          <<: *copy-file
+          name: Copy-to-env
+
+    Delete from S3:
+      - variables:
+        - name: BITBUCKET_DEPLOYMENT_ENVIRONMENT
+          default: development
+          allowed-values:
+            - evaluation
+            - development
+            - ftest
+            - staging
+            - ptest
+            - production
+        - name: file_path
+        - name: delete_type
+          default: DRY_RUN
+          allowed-values:
+            - DRY_RUN
+            - DELETE
+      - step:
+          <<: *delete-file
+          name: Delete-file
+
+
+
+
+clone:
+  depth: full # depth defined
+options:
   max-time: 30 # pipeline max-time execution set to 30 mins
 
 definitions:
