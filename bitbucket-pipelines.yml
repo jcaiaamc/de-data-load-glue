@@ -19,7 +19,7 @@ definitions:
           - echo ${DB}.${SCHEMA,,}.${TABLE,,}
           - echo $YYYYMMDD
 
-          - aws --profile serverless s3 sync files s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,}--${Portfolio,,}-${Pod,,}-bucket/files/${DB_TYPE}/${DB}/${SCHEMA,,}/${TABLE,,}/$YYYYMMDD/
+          - aws --profile serverless s3 sync files s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,}--${Portfolio,,}-${Pod,,}-bucket/files/${DB_TYPE}/${DB}/${SCHEMA,,}/${TABLE,,}/$YYYYMMDD/ --exclude test.txt
 
 
   ####################### Steps defined to delete file(s) from s3 #######################
