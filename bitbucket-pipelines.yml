@@ -6,7 +6,7 @@ definitions:
   steps: 
 
   ####################### Steps defined to copy file to s3 #######################
-    - step: &Copy-file
+    - step: &copy-file
         image: amazon/aws-cli:2.0.42
         name: Copy-to-s3
         script:
