@@ -1,7 +1,7 @@
 clone:
   depth: full # depth defined
 options:
-  max-time: 45 # pipeline max-time execution set to 45 mins  
+  max-time: 30 # pipeline max-time execution set to 30 mins  
 definitions:
   steps: 
 
@@ -12,14 +12,25 @@ definitions:
         script:
           - if [ -n "$Environment" ] ; then export BITBUCKET_DEPLOYMENT_ENVIRONMENT=$Environment; fi
           - . ./config/config-aws.sh
+          - yum install jq -y
 
           - PORTFOLIO=ops
           - POD=data-load
+
+          - json=$(cat load_info.json)
+          - SCHEMA=$(echo "$json" | jq -r '.SCHEMA') 
+          - TABLE=$(echo "$json" | jq -r '.TABLE') 
+          - YYYYMMDD=$(echo "$json" | jq -r '.YYYYMMDD') 
+
+          - if [[ -n ${SCHEMA// } && -n ${TABLE// } && -n ${YYYYMMDD// } ]]; then
           - echo ${DB_TYPE}
           - echo ${DB}.${SCHEMA,,}.${TABLE,,}
           - echo $YYYYMMDD
-
-          - aws --profile serverless s3 sync files s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,}--${Portfolio,,}-${Pod,,}-bucket/files/${DB_TYPE}/${DB}/${SCHEMA,,}/${TABLE,,}/$YYYYMMDD/ --exclude test.txt
+          - echo s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,}-${PORTFOLIO,,}-${POD,,}-bucket
+          - aws --profile serverless s3 sync files s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,}-${PORTFOLIO,,}-${POD,,}-bucket/files/${DB_TYPE}/${DB}/${SCHEMA,,}/${TABLE,,}/$YYYYMMDD/ --exclude test.txt
+          - else 
+          - echo "One or to inputs missing"
+          - fi
 
 
   ####################### Steps defined to delete file(s) from s3 #######################
@@ -32,7 +43,7 @@ definitions:
 
           - PORTFOLIO=ops
           - POD=data-load
-          - bucket_name=s3://${Environment}-${Portfolio,,}-${Pod,,}-bucket/
+          - bucket_name=s3://${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,}-${PORTFOLIO,,}-${POD,,}-bucket/
           - echo "S3 bucket - ${bucket_name}" 
           - echo ${file_path}
           - echo ${delete_type}
@@ -67,6 +78,7 @@ pipelines:
             - oracle
             - postgres
         - name: DB
+          default: RAE
           allowed-values:
             - RAE
             - DW
@@ -80,9 +92,6 @@ pipelines:
             - mcat
             - mda
             - ps
-        - name: SCHEMA
-        - name: TABLE
-        - name: YYYYMMDD
       - step:
           <<: *copy-file
           name: Copy-to-env
