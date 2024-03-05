@@ -26,9 +26,13 @@ This README would normally document whatever steps are necessary to get your app
 
 To upload file(s):
 * In load_info.json: define the schema, table and load date (or date when file is provided) in YYYYMMDD. 
+    * "SCHEMA": target schema name, for example: "contact_svc" 
+    * "TABLE": target table name, for example: "xwalk_institution_contact"
+    * "YYYYMMDD": define datestamp in YYYYMMDD format, for example: "20240229".
+
 * Using pipeline, select "Copy to S3 option" and select values for the following:
-    * DB_TYPE: select between "oracle" or "postgres"
-    * DB: select from a list of DBs, oracle DBs are capitalized 
+    * DB_TYPE: select between "oracle" or "postgres".
+    * DB: select from a list of DBs, oracle DBs are capitalized. 
 
 ### Delete file option ###
 To delete file(s):
