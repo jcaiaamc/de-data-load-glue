@@ -10,7 +10,7 @@ This README would normally document whatever steps are necessary to get your app
 
 ### upload-file branch ###
 
-* This branch is only used to make upload file(s) into the designated s3 bucket. 
+* This branch is only used to upload file(s) into the designated s3 bucket. 
 
 ### Setup guidelines ###
 
@@ -25,6 +25,7 @@ This README would normally document whatever steps are necessary to get your app
 ### Upload file option ###
 
 To upload file(s):
+
 * In load_info.json: define the schema, table and load date (or date when file is provided) in YYYYMMDD. 
     * "SCHEMA": target schema name, for example: "contact_svc" 
     * "TABLE": target table name, for example: "xwalk_institution_contact"
@@ -35,7 +36,9 @@ To upload file(s):
     * DB: select from a list of DBs, oracle DBs are capitalized. 
 
 ### Delete file option ###
+
 To delete file(s):
+
 * Using the pipeline, define the following:
     * file_path: define a path to a folder or file, without the s3 bucket (i.e. if the file is "s3://bucketname/folder/subfolder/filename.txt", only enter "folder/subfolder/filename.txt"). The s3 bucket is limited to the s3 bucket created for this project.
     * delete_type: select either "DRY_RUN" to see which file(s) will be deleted, or "DELETE" to do the actual deletion. 
