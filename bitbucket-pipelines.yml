@@ -59,6 +59,63 @@ definitions:
           - fi
 
 
+    ####################### Steps defined to run glue job #######################
+    - step: &Run-job
+        image: amazon/aws-cli:2.0.42
+        name: Run-glue-job
+        script:
+          - if [ -n "$Environment" ] ; then export BITBUCKET_DEPLOYMENT_ENVIRONMENT=$Environment; fi
+          - . ./config/config-aws.sh
+          - yum install jq -y
+          - PORTFOLIO=ops
+          - POD=data-load
+          - json=$(cat settings.json)
+          - TARGET_DB=$(echo "$json" | jq -r '.TARGET_DB') 
+          - TARGET_TABLE=$(echo "$json" | jq -r '.TARGET_TABLE')
+          - SOURCE_FILE=$(echo "$json" | jq -r '.SOURCE_FILE') 
+          - PRE_SQL_FILE=$(echo "$json" | jq -r '.PRE_SQL_FILE') 
+          - POST_SQL_FILE=$(echo "$json" | jq -r '.POST_SQL_FILE') 
+          - EMAIL_TO=$(echo "$json" | jq -r '.EMAIL_TO')
+          - echo $DEBUG_IND
+
+          - EXEC="N"
+          - if [[ -n "${TARGET_DB// }" && ( -n "${PRE_SQL_FILE// }" || -n "${POST_SQL_FILE// }") ]]; then EXEC="Y"
+          - elif [[ -n "${TARGET_DB// }" && -n "${SOURCE_FILE// }" && -n "${TARGET_TABLE// }" ]]; then EXEC="Y"
+          - fi
+          - echo $EXEC
+
+          - if [[ -n "${EMAIL_TO// }" && $EXEC == "Y" ]]; then EMAIL_IND="Y"; else EMAIL_IND="N"; fi
+          - echo $EMAIL_IND
+          
+          - if [[ $EXEC == "Y" ]]; then
+          - if [[ -z "${TARGET_DB// }" ]]; then TARGET_DB="-"; else echo $TARGET_DB; fi
+          - if [[ -z "${TARGET_TABLE// }" ]]; then TARGET_TABLE="-"; else echo $TARGET_TABLE; fi
+          - if [[ -z "${SOURCE_FILE// }" ]]; then SOURCE_FILE="-" 
+          - else 
+          - SOURCE_FILE=${SOURCE_FILE/<environment>/${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,}}
+          - echo $SOURCE_FILE
+          - fi
+          - if [[ -z "${PRE_SQL_FILE// }" ]]; then PRE_SQL_FILE="-" 
+          - else 
+          - PRE_SQL_FILE=${PRE_SQL_FILE/<environment>/${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,}}
+          - echo $PRE_SQL_FILE
+          - fi
+          - if [[ -z "${POST_SQL_FILE// }" ]]; then POST_SQL_FILE="-" 
+          - else 
+          - POST_SQL_FILE=${POST_SQL_FILE/<environment>/${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,}}
+          - echo $POST_SQL_FILE
+          - fi
+          - echo $WRITE_OPTION
+          - if [[ $EMAIL_IND == "Y" ]]; then
+          - aws --profile serverless glue start-job-run --job-name ${PORTFOLIO,,}-${POD,,} --arguments="--env=${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,},--source_file=${SOURCE_FILE},--target_db=$TARGET_DB,--target_table=$TARGET_TABLE,--write_option=$WRITE_OPTION,--pre_script=$PRE_SQL_FILE,--post_script=$POST_SQL_FILE,--debug_ind=$DEBUG_IND,--email_to=$EMAIL_TO"
+          - else
+          - aws --profile serverless glue start-job-run --job-name ${PORTFOLIO,,}-${POD,,} --arguments="--env=${BITBUCKET_DEPLOYMENT_ENVIRONMENT,,},--source_file=${SOURCE_FILE},--target_db=$TARGET_DB,--target_table=$TARGET_TABLE,--write_option=$WRITE_OPTION,--pre_script=$PRE_SQL_FILE,--post_script=$POST_SQL_FILE,--debug_ind=$DEBUG_IND"
+          - fi
+          - else
+          - echo "Nothing to do"
+          - fi
+
+
 pipelines:
   custom:
     Copy to S3:
@@ -116,3 +173,28 @@ pipelines:
       - step:
           <<: *delete-file
           name: Delete-file
+
+    Run-job:
+      - variables:
+          - name: BITBUCKET_DEPLOYMENT_ENVIRONMENT
+            default: development
+            allowed-values:
+              - evaluation
+              - development
+              - ftest
+              - staging
+              - ptest
+              - production
+          - name: WRITE_OPTION
+            default: append
+            allowed-values:
+              - append
+              - truncate
+          - name: DEBUG_IND
+            default: N
+            allowed-values:
+              - N
+              - Y
+      - step:
+          <<: *Run-job
+          name: Run job

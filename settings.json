@@ -1,0 +1,8 @@
+{
+  "TARGET_DB": "add_target_db", 
+  "SOURCE_FILE": "s3://<environment>-ops-data-load-bucket/files/postgres_or_oracle/target_db/target_schema/target_table/YYYYMMDD/filename.csv",
+  "TARGET_TABLE": "target_schema.target_table",
+  "PRE_SQL_FILE": "s3://<environment>-ops-data-load-bucket/files/postgres_or_oracle/target_db/target_schema/target_table/YYYYMMDD/pre-script-filename.txt",
+  "POST_SQL_FILE": "s3://<environment>-ops-data-load-bucket/files/postgres_or_oracle/target_db/target_schema/target_table/YYYYMMDD/post-script-filename.txt",
+  "EMAIL_TO": "add_email_override_or_leave_blank"
+}
