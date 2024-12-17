@@ -47,7 +47,7 @@ on:
         - mda
         - ps
       File_path:
-        description: 's3 path of the file(s) to delete -- leave blank if not deleting any'
+        description: 's3 file path excluding the bucketname of the file(s) to delete  -- leave blank if not deleting any'
         required: false
         type: string
       delete_type:
