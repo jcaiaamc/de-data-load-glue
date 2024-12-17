@@ -1,0 +1,118 @@
+name: upload-file Copy-S3-files-LFS
+on:
+  workflow_dispatch:
+    inputs:  
+      environment:
+        description: Environment      
+        required: true
+        default: 'development'
+        type: choice
+        options:
+        - evaluation
+        - development
+        - ftest
+        - staging
+        - ptest
+        - production
+      DB_TYPE:
+        description: provide database type (Oracle or PostgreSQL)
+        required: true
+        default: postgres
+        type: choice
+        options:
+        - oracle
+        - postgres
+      DB:
+        description: database name
+        required: true
+        default: edc
+        type: choice
+        options:
+        - RAE
+        - DW
+        - SEC
+        - ERAS
+        - AMCAS
+        - ATS
+        - EIS
+        - edc
+        - eras
+        - mcat
+        - mda
+        - ps
+        
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
+  
+jobs:      
+  Copy-S3-files :
+    name: "Copy S3 files in ${{ inputs.environment }}"
+    runs-on: self-hosted
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: "Set up LFS"
+        run: |
+          sudo apt-get update && sudo apt-get install git-lfs
+      - name: "Checkout Code"
+        uses: actions/checkout@v3
+        with:
+          lfs: 'true'
+      - name: pullLFS
+        run: git lfs pull
+      - name: set aws credentials environment variables
+        run: |
+          echo "${{ inputs.environment}}"
+          if [[ ${{ inputs.environment}} == "evaluation" ]]; then
+            export EnvType="EVAL";
+            export Cost_Centre="16900";
+            export ENVIRONMENT_TAG_VALUE="Evaluation"
+          elif [[ ${{ inputs.environment}} == "development" ]]; then
+            export EnvType="DEV";
+            export Cost_Centre="16900";
+            export ENVIRONMENT_TAG_VALUE="Development"
+          elif [[ ${{ inputs.environment}} == "ftest" ]]; then
+            export EnvType="FTEST";
+            export Cost_Centre="16900";
+            export ENVIRONMENT_TAG_VALUE="Ftest"
+          elif [[ ${{ inputs.environment}} == "staging" ]]; then
+            export EnvType="STAGING";
+            export Cost_Centre="16900";
+            export ENVIRONMENT_TAG_VALUE="Staging"
+          elif [[ ${{ inputs.environment}} == "ptest" ]]; then
+            export EnvType="PTEST";
+            export Cost_Centre="16900";
+            export ENVIRONMENT_TAG_VALUE="Ptest"
+          elif [[ ${{ inputs.environment}} == "production" ]]; then
+            export EnvType="PROD";
+            export Cost_Centre="16200";
+            export ENVIRONMENT_TAG_VALUE="Production"
+          fi
+          echo "ACCESS_KEY=${EnvType}_AWS_ACCESS_KEY" >> "$GITHUB_ENV"
+          echo "SECURITY_KEY=${EnvType}_AWS_SECRET_KEY" >> "$GITHUB_ENV"
+          echo "SERVERLESS_ROLE=${EnvType}_AWS_SERVERLESS_ROLE" >> "$GITHUB_ENV"
+          echo "DEPLOYER_ROLE=${EnvType}_AWS_DEPLOYER_ROLE" >> "$GITHUB_ENV" 
+          echo "CostCentre=${Cost_Centre}" >> "$GITHUB_ENV"
+      - name: Config aws in ${{ inputs.environment }} Environment
+        shell: bash
+        run: |
+            aws --profile serverless configure set aws_access_key_id "${{ secrets[env.ACCESS_KEY] }}"          
+            aws --profile serverless configure set aws_secret_access_key "${{ secrets[env.SECURITY_KEY] }}"
+            aws --profile serverless configure set region ${{ vars.AWS_DEFAULT_REGION }} 
+            aws --profile serverless configure set role_arn "${{ vars[env.DEPLOYER_ROLE] }}"
+            aws --profile serverless configure set source_profile serverless
+      - name: Config load data in ${{ inputs.environment }}
+        shell: bash
+        run: |
+            sudo apt install -y jq
+            echo "SCHEMA=$(cat load_info.json | jq -r '.SCHEMA')" >> $GITHUB_ENV
+            echo "TABLE=$(cat load_info.json | jq -r '.TABLE')" >> $GITHUB_ENV
+            echo "YYYYMMDD=$(cat load_info.json | jq -r '.YYYYMMDD')" >>$GITHUB_ENV
+      - name: Copy files in ${{ inputs.environment }}
+        shell: bash
+        run: |
+            echo "Copy S3 files in ${{ inputs.environment }} "
+            echo "${{env.SCHEMA}}"
+            echo "${{env.TABLE}}"
+            echo "${{env.YYYYMMDD}}"
+            echo "s3://${{github.event.inputs.environment}}-${{vars.PORTFOLIO}}-${{vars.POD}}-bucket/files/${{github.event.inputs.DB_TYPE}}/${{github.event.inputs.DB}}/${{env.SCHEMA}}/${{env.TABLE}}/${{env.YYYYMMDD}}/"
+            aws --profile serverless s3 sync files s3://${{inputs.environment}}-${{vars.PORTFOLIO}}-${{vars.POD}}-bucket/files/${{inputs.DB_TYPE}}/${{inputs.DB}}/${{env.SCHEMA}}/${{env.TABLE}}/${{env.YYYYMMDD}}/ --exclude test.txt

@@ -3,5 +3,6 @@
 {
   "SCHEMA": "-", 
   "TABLE": "-",
-  "YYYYMMDD": "19000101"
+  "YYYYMMDD": "20241210",
+  "load_settings_path": "s3://<environment>-ops-data-load-bucket/files/postgres_or_oracle/target_db/target_schema/target_table/YYYYMMDD/settings.json"
 }

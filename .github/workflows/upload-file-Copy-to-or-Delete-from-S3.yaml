@@ -1,0 +1,144 @@
+name: upload-file Copy and delete file(s) from S3
+on:
+  workflow_dispatch:
+    inputs:  
+      environment:
+        description: Environment      
+        required: true
+        default: 'evaluation'
+        type: choice
+        options:
+        - evaluation
+        - development
+        - ftest
+        - staging
+        - ptest
+        - production
+      Deployment-task:
+        description: Provide deployment task      
+        required: true
+        default: 'Copy-Files-to-S3'
+        type: choice
+        options:
+        - Copy-Files-to-S3
+        - Delete-Files-from-S3
+      DB_TYPE:
+        description: 'select DB type -- ignore if deleting file(s) from s3'
+        required: false
+        type: choice
+        options:
+        - oracle
+        - postgres
+      DB:
+        description: 'select DB instance -- ignore if deleting file(s) from s3'
+        required: false
+        type: choice
+        options:
+        - RAE
+        - DW
+        - SEC
+        - ERAS
+        - AMCAS
+        - ATS
+        - EIS
+        - edc
+        - eras
+        - mcat
+        - mda
+        - ps
+      File_path:
+        description: 's3 path of the file(s) to delete -- leave blank if not deleting any'
+        required: false
+        type: string
+      delete_type:
+        description: 'choose from dry-run or real deletion of files -- leave blank if not deleting any'
+        required: false
+        default: 'DRY_RUN'
+        type: choice
+        options:
+        - DRY_RUN
+        - DELETE
+        
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
+  
+jobs:      
+  Deploy :
+    name: "${{ inputs.Deployment-task }} in ${{ inputs.environment }}"
+    runs-on: self-hosted
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v3
+      - name: set aws credentials environment variables
+        run: |
+          echo "${{ inputs.environment}}"
+          if [[ ${{ inputs.environment}} == "evaluation" ]]; then
+            export EnvType="EVAL";
+          elif [[ ${{ inputs.environment}} == "development" ]]; then
+            export EnvType="DEV";
+          elif [[ ${{ inputs.environment}} == "ftest" ]]; then
+            export EnvType="FTEST";
+          elif [[ ${{ inputs.environment}} == "staging" ]]; then
+            export EnvType="STAGING";
+          elif [[ ${{ inputs.environment}} == "ptest" ]]; then
+            export EnvType="PTEST";
+          elif [[ ${{ inputs.environment}} == "production" ]]; then
+            export EnvType="PROD";
+          fi
+          echo "ACCESS_KEY=${EnvType}_AWS_ACCESS_KEY" >> "$GITHUB_ENV"
+          echo "SECURITY_KEY=${EnvType}_AWS_SECRET_KEY" >> "$GITHUB_ENV"
+          echo "SERVERLESS_ROLE=${EnvType}_AWS_SERVERLESS_ROLE" >> "$GITHUB_ENV"
+          echo "DEPLOYER_ROLE=${EnvType}_AWS_DEPLOYER_ROLE" >> "$GITHUB_ENV" 
+          echo "CostCentre=${Cost_Centre}" >> "$GITHUB_ENV"
+
+      - name: Deploying to ${{ inputs.environment }} Environment
+        shell: bash
+        run: |
+            aws --profile serverless configure set aws_access_key_id "${{ secrets[env.ACCESS_KEY] }}"          
+            aws --profile serverless configure set aws_secret_access_key "${{ secrets[env.SECURITY_KEY] }}"
+            aws --profile serverless configure set region ${{ vars.AWS_DEFAULT_REGION }} 
+            aws --profile serverless configure set role_arn "${{ vars[env.DEPLOYER_ROLE] }}"
+            aws --profile serverless configure set source_profile serverless
+
+            if ( ${{ github.event.inputs.Deployment-task == 'Delete-Files-from-S3' }} ); then
+            echo "${{ github.event.inputs.Deployment-task }} in ${{ inputs.environment }}"
+
+            bucket_name=s3://${{inputs.environment}}-${{vars.PORTFOLIO}}-${{vars.POD}}-bucket/
+            echo "S3 bucket - ${bucket_name}" 
+            echo ${file_path}
+            echo ${delete_type}
+
+            if [[ $delete_type == "DRY_RUN" ]]; then 
+            aws --profile serverless s3 rm ${bucket_name} --recursive --dryrun --exclude "*" --include "${file_path}*"
+
+            elif [[ $delete_type == "DELETE" ]]; then 
+            aws --profile serverless s3 rm ${bucket_name} --recursive --exclude "*" --include "${file_path}*"
+
+            else
+            echo "do nothing"
+            fi
+
+            elif ( ${{ github.event.inputs.Deployment-task == 'Copy-Files-to-S3' }} ); then
+            echo "${{ github.event.inputs.Deployment-task }} in ${{ inputs.environment }}"
+
+            json=$(cat load_info.json)
+            SCHEMA=$(echo "$json" | jq -r '.SCHEMA') 
+            TABLE=$(echo "$json" | jq -r '.TABLE') 
+            YYYYMMDD=$(echo "$json" | jq -r '.YYYYMMDD') 
+
+            if [[ -n ${SCHEMA// } && -n ${TABLE// } && -n ${YYYYMMDD// } ]]; then
+            echo ${DB_TYPE}
+            echo ${DB}.${SCHEMA,,}.${TABLE,,}
+            echo $YYYYMMDD
+            echo s3://${{inputs.environment}}-${{vars.PORTFOLIO}}-${{vars.POD}}-bucket
+
+            aws --profile serverless s3 sync files s3://${{inputs.environment}}-${{vars.PORTFOLIO}}-${{vars.POD}}-bucket/files/${DB_TYPE}/${DB}/${SCHEMA,,}/${TABLE,,}/$YYYYMMDD/ --exclude test.txt
+            
+            else 
+            echo "One or more inputs missing"
+            fi
+
+            else
+            echo "Do nothing"
+            fi

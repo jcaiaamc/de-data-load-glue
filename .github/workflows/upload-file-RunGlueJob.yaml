@@ -1,0 +1,95 @@
+name: upload-file Run Job
+on:
+  workflow_dispatch:
+    inputs:
+      Environment:
+        description: Environment
+        required: true
+        default: 'evaluation'
+        type: choice
+        options:
+        - evaluation
+        - development
+        - ftest
+        - staging
+        - ptest
+        - production
+      WRITE_OPTION:
+        description: Select between append (insert only) or truncate (truncate the target table before insert)
+        required: false
+        default: 'append'
+        type: choice
+        options:
+        - append
+        - truncate
+      DEBUG_IND:
+        type: choice
+        options:
+        - N
+        - Y
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
+  
+jobs: 
+  # cab-approval-custom:
+  #   name: "CAB Approval Custom"
+  #   runs-on: self-hosted
+  #   if:  ( github.event.inputs.environment == 'production' )
+  #   environment: cab-approval
+  #   steps:
+  #     - name: "Change Approved"
+  #       run: echo "Approved"       
+  Start-Glue-Job:
+    name: "${{ inputs.environment }}:"
+    # needs: [cab-approval-custom]
+    # if: always() && (needs.cab-approval-custom.result == 'skipped' || needs.cab-approval-custom.result == 'success')
+    runs-on: self-hosted
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v3
+      - name: set aws credentials environment variables
+        run: |
+          echo "${{ inputs.environment}}"
+          if [[ ${{ inputs.environment}} == "evaluation" ]]; then
+            export EnvType="EVAL";
+          elif [[ ${{ inputs.environment}} == "development" ]]; then
+            export EnvType="DEV";
+          elif [[ ${{ inputs.environment}} == "ftest" ]]; then
+            export EnvType="FTEST";
+          elif [[ ${{ inputs.environment}} == "staging" ]]; then
+            export EnvType="STAGING";
+          elif [[ ${{ inputs.environment}} == "ptest" ]]; then
+            export EnvType="PTEST";
+          elif [[ ${{ inputs.environment}} == "production" ]]; then
+            export EnvType="PROD";
+          fi
+          echo "ACCESS_KEY=${EnvType}_AWS_ACCESS_KEY" >> "$GITHUB_ENV"
+          echo "SECURITY_KEY=${EnvType}_AWS_SECRET_KEY" >> "$GITHUB_ENV"
+          echo "OPS_ROLE=${EnvType}_AWS_OPS_ROLE" >> "$GITHUB_ENV"
+          echo "DEPLOY_ROLE=${EnvType}_AWS_DEPLOYER_ROLE" >> "$GITHUB_ENV"
+          echo "SERVERLESS_ROLE=${EnvType}_AWS_SERVERLESS_ROLE" >> "$GITHUB_ENV"
+
+      - name: " Start-Glue-Job in ${{ inputs.environment }} Environment "
+        shell: bash
+        run: |
+            aws --profile serverless configure set aws_access_key_id "${{ secrets[env.ACCESS_KEY] }}"          
+            aws --profile serverless configure set aws_secret_access_key "${{ secrets[env.SECURITY_KEY] }}"
+            aws --profile serverless configure set region ${{ vars.AWS_DEFAULT_REGION }} 
+            aws --profile serverless configure set role_arn "${{ vars[env.OPS_ROLE] }}"
+            aws --profile serverless configure set source_profile serverless
+
+            echo " Start a Glue Job in ${{inputs.environment}} "
+            echo $WRITE_OPTION
+            json=$(cat load_info.json)
+            SETTINGS_PATH=$(echo "$json" | jq -r '.load_settings_path') 
+            echo $SETTINGS_PATH
+
+            if [[ $SETTINGS_PATH == *"postgres_or_oracle/target_db/target_schema/target_table"* ]]; then EXEC="N"; else EXEC="Y"; fi
+
+            if [[ $EXEC == "Y" ]]; then
+            aws --profile serverless glue start-job-run --job-name ${{vars.PORTFOLIO}}-${{vars.POD}} --arguments="--write_option=$WRITE_OPTION,--debug_ind=$DEBUG_IND,--load_settings=$SETTINGS_PATH"
+            else
+            echo "Nothing to do, need to specify the s3 path for settings.json file in load_info.json"
+            fi
