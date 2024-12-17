@@ -1,4 +1,4 @@
-name: upload-file Copy and delete file(s) from S3
+name: upload-file Copy to or delete file(s) from S3
 on:
   workflow_dispatch:
     inputs:  
@@ -106,14 +106,14 @@ jobs:
 
             bucket_name=s3://${{inputs.environment}}-${{vars.PORTFOLIO}}-${{vars.POD}}-bucket/
             echo "S3 bucket - ${bucket_name}" 
-            echo ${file_path}
-            echo ${delete_type}
+            echo ${{inputs.file_path}}
+            echo ${{inputs.delete_type}}
 
-            if [[ $delete_type == "DRY_RUN" ]]; then 
-            aws --profile serverless s3 rm ${bucket_name} --recursive --dryrun --exclude "*" --include "${file_path}*"
+            if [[ ${{inputs.delete_type}} == "DRY_RUN" ]]; then 
+            aws --profile serverless s3 rm ${bucket_name} --recursive --dryrun --exclude "*" --include "${{inputs.file_path}}*"
 
-            elif [[ $delete_type == "DELETE" ]]; then 
-            aws --profile serverless s3 rm ${bucket_name} --recursive --exclude "*" --include "${file_path}*"
+            elif [[ ${{inputs.delete_type}} == "DELETE" ]]; then 
+            aws --profile serverless s3 rm ${bucket_name} --recursive --exclude "*" --include "${{inputs.file_path}}*"
 
             else
             echo "do nothing"
@@ -128,12 +128,12 @@ jobs:
             YYYYMMDD=$(echo "$json" | jq -r '.YYYYMMDD') 
 
             if [[ -n ${SCHEMA// } && -n ${TABLE// } && -n ${YYYYMMDD// } ]]; then
-            echo ${DB_TYPE}
-            echo ${DB}.${SCHEMA,,}.${TABLE,,}
+            echo ${{inputs.DB_TYPE}}
+            echo ${{inputs.DB}}.${SCHEMA}.${TABLE}
             echo $YYYYMMDD
             echo s3://${{inputs.environment}}-${{vars.PORTFOLIO}}-${{vars.POD}}-bucket
 
-            aws --profile serverless s3 sync files s3://${{inputs.environment}}-${{vars.PORTFOLIO}}-${{vars.POD}}-bucket/files/${DB_TYPE}/${DB}/${SCHEMA,,}/${TABLE,,}/$YYYYMMDD/ --exclude test.txt
+            aws --profile serverless s3 sync files s3://${{inputs.environment}}-${{vars.PORTFOLIO}}-${{vars.POD}}-bucket/files/${{inputs.DB_TYPE}}/${{inputs.DB}}/${SCHEMA}/${TABLE}/$YYYYMMDD/ --exclude test.txt
             
             else 
             echo "One or more inputs missing"

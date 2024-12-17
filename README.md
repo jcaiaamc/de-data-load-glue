@@ -5,7 +5,7 @@ This README would normally document whatever steps are necessary to get your app
 ### de-data-load-glue ###
 
 * This project is for uploading files into an s3 bucket ({env}-ops-data-load-bucket). 
-* Place all files that should be uploaded into "files" folder. 
+* Place all files that should be uploaded into "files" folder -- include settings.json in here as well. 
 * The glue job needs information from load_info.json and settings.json files (definitions below) to load data. As a minimum, define either a data load, or a pre-sql file, or a post-sql file.
 * When selecting the Run-job option, you can choose the "write" method (note that the target table must exist before the data can be loaded into it):
     * append: specify if the load is to append to an existing table.
