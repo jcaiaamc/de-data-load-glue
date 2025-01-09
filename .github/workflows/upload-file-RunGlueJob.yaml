@@ -22,8 +22,16 @@ on:
         options:
         - append
         - truncate
+      REMOVE_NULL_IND:
+        description: If set to 'Y' will automatically remove null values (i.e. NULL, null, NaN, nan, N/A)
+        type: choice
+        default: Y
+        options:
+        - N
+        - Y
       DEBUG_IND:
         type: choice
+        default: N
         options:
         - N
         - Y
@@ -89,7 +97,7 @@ jobs:
             if [[ $SETTINGS_PATH == *"postgres_or_oracle/target_db/target_schema/target_table"* ]]; then EXEC="N"; else EXEC="Y"; fi
 
             if [[ $EXEC == "Y" ]]; then
-            aws --profile serverless glue start-job-run --job-name ${{vars.PORTFOLIO}}-${{vars.POD}} --arguments="--write_option=${{inputs.WRITE_OPTION}},--debug_ind=${{inputs.DEBUG_IND}},--load_settings=$SETTINGS_PATH"
+            aws --profile serverless glue start-job-run --job-name ${{vars.PORTFOLIO}}-${{vars.POD}} --arguments="--write_option=${{inputs.WRITE_OPTION}},--debug_ind=${{inputs.DEBUG_IND}},--load_settings=$SETTINGS_PATH,--remove_null_ind=${{inputs.REMOVE_NULL_IND}}"
             else
             echo "Nothing to do, need to specify the s3 path for settings.json file in load_info.json"
             fi
