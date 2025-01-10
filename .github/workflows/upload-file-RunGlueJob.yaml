@@ -23,7 +23,7 @@ on:
         - append
         - truncate
       REMOVE_NULL_IND:
-        description: If set to 'Y' will automatically remove null values (i.e. NULL, null, NaN, nan, N/A)
+        description: If set to 'Y' will automatically remove null values (i.e. NULL, null, NaN, nan)
         type: choice
         default: Y
         options:
