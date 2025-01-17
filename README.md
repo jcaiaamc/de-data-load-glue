@@ -60,6 +60,7 @@ To run the job:
 * Using pipeline, select "upload-file Run Job" option and select values for the following:
     * "WRITE_OPTION": select between append (insert only) or truncate (truncate the target table before insert).
     * "DEBUG_IND": "N" to log minimal info during the job run, "Y" to record all logs during the job run.
+    * "REMOVE_NULL_IND": "Y" to remove NULL, null, NaN, or nan values.
 
 ### Delete file option ###
 
