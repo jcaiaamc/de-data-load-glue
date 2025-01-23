@@ -1,10 +1,10 @@
 {
-  "TARGET_DB": "add_target_db", 
+  "TARGET_DB": "edc", 
   "SOURCE_TARGET_TAB_PAIRS": [
-    ["s3://<environment>-ops-data-load-bucket/files/postgres_or_oracle/target_db/target_schema/target_table/YYYYMMDD/test_table_1.csv","target_schema.target_table1"],
-    ["s3://<environment>-ops-data-load-bucket/files/postgres_or_oracle/target_db/target_schema/target_table/YYYYMMDD/test_table_2.csv","target_schema.target_table2"]
+    ["s3://<environment>-ops-data-load-bucket/files/postgres/edc/edc_data_update/batch_data_update/20250123/DEO1061_Nimble_p1.csv","edc_data_update.batch_data_update"],
+    ["s3://<environment>-ops-data-load-bucket/files/postgres/edc/edc_data_update/batch_data_update/20250123/DEO1061_Nimble_p2.csv","edc_data_update.batch_data_update"]
   ],
-  "PRE_SQL_FILE": "s3://<environment>-ops-data-load-bucket/files/postgres_or_oracle/target_db/target_schema/target_table/YYYYMMDD/pre-script-filename.txt",
-  "POST_SQL_FILE": "s3://<environment>-ops-data-load-bucket/files/postgres_or_oracle/target_db/target_schema/target_table/YYYYMMDD/post-script-filename.txt",
-  "EMAIL_TO": "add_email_override_or_leave_blank"
+  "PRE_SQL_FILE":  "s3://<environment>-ops-data-load-bucket/files/postgres/edc/edc_data_update/batch_data_update/20250123/pre-script.sql",
+  "POST_SQL_FILE": "s3://<environment>-ops-data-load-bucket/files/postgres/edc/edc_data_update/batch_data_update/20250123/post-script.sql",
+  "EMAIL_TO": "jcai@aamc.org"
 }
