@@ -3,6 +3,6 @@
 {
   "SCHEMA": "edc_data_update", 
   "TABLE": "batch_data_update",
-  "YYYYMMDD": "20250123",
-  "load_settings_path": "s3://<environment>-ops-data-load-bucket/files/postgres/edc/edc_data_update/batch_data_update/20250123/settings.json"
+  "YYYYMMDD": "20250128",
+  "load_settings_path": "s3://<environment>-ops-data-load-bucket/files/postgres/edc/edc_data_update/batch_data_update/20250128/settings.json"
 }
